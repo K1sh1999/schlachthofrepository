@@ -5,95 +5,202 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Media Archive</title>
 <style>
+  /* ============ FONT: ABC Diatype Mono Edu ============
+     Uses the font if it is installed on the computer, or loads it from the folder  fonts/  next to this file.
+     Put your licensed font files there with exactly these names (or change the names below):
+       fonts/ABCDiatypeMonoEdu-Regular.woff2   and   fonts/ABCDiatypeMonoEdu-Bold.woff2
+     Until then a standard monospace font is shown. */
+  @font-face { font-family: "ABC Diatype Mono Edu"; font-weight: 400; font-style: normal; font-display: swap;
+    src: local("ABC Diatype Mono Edu"), local("ABC Diatype Mono Edu Regular"), local("ABCDiatypeMonoEdu-Regular"),
+         url("fonts/ABCDiatypeMonoEdu-Regular.woff2") format("woff2"), url("fonts/ABCDiatypeMonoEdu-Regular.woff") format("woff"); }
+  @font-face { font-family: "ABC Diatype Mono Edu"; font-weight: 700; font-style: normal; font-display: swap;
+    src: local("ABC Diatype Mono Edu Bold"), local("ABCDiatypeMonoEdu-Bold"),
+         url("fonts/ABCDiatypeMonoEdu-Bold.woff2") format("woff2"), url("fonts/ABCDiatypeMonoEdu-Bold.woff") format("woff"); }
+
+  /* ============ SETTINGS: change these values to adjust the look ============ */
+  :root {
+    --font: "ABC Diatype Mono Edu", "ABC Diatype Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --gap: 4px;            /* space between the media tiles */
+    --veil-opacity: 0.6;   /* milky layer on hover: 0 = invisible, 1 = fully white */
+    --veil-blur: 8px;      /* blur of the milky layer (0px = no blur) */
+  }
+  /* ========================================================================== */
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; overflow: hidden; }
-  body { font-family: "ABC Diatype Mono Edu", monospace; background: #fcfbfb; color: #1c1c1c; }
+  body { font-family: var(--font); background: #fff; color: #1c1c1c; }
+  button, input, select, textarea { font-family: inherit; }
+  [hidden] { display: none !important; }
 
-  /* Glass effect (frosted, translucent, bright edge) */
   .glass { background: linear-gradient(135deg, rgba(255,255,255,.58), rgba(255,255,255,.26));
     -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%);
     border: 1px solid rgba(255,255,255,.7);
     box-shadow: 0 8px 32px rgba(0,0,0,.16), inset 0 1px 1px rgba(255,255,255,.95), inset 0 -1px 1px rgba(255,255,255,.4); }
-  .glass:hover, .glass:focus-within { background: linear-gradient(135deg, rgba(255,255,255,.75), rgba(255,255,255,.4)); }
 
-  /* Search bar: center of the page, top while searching; collapses to a magnifier icon when zoomed */
-  #search-wrap { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(540px, 86vw); height: 56px;
+  /* Navigation: the black pill glides from one item to the next */
+  #nav { position: fixed; top: 20px; right: 24px; z-index: 70; display: flex; gap: 2px; padding: 3px; border-radius: 999px; }
+  #nav .pill { position: absolute; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 999px; background: #1c1c1c; }
+  #nav .pill.ready { transition: left .55s cubic-bezier(.65,0,.25,1), width .55s cubic-bezier(.65,0,.25,1); }
+  #nav a { position: relative; z-index: 1; padding: .5rem 1rem; border-radius: 999px; color: #1c1c1c; text-decoration: none; font-size: .85rem; transition: color .35s, background .2s; }
+  #nav a:not(.on):hover { background: rgba(255,255,255,.6); }
+  #nav a.on { color: #fff; }
+
+  /* Elements that belong to the archive fade out on other pages */
+  #search-wrap, #count, #zoom, #none { transition: opacity .4s ease; }
+  body:not([data-view="archive"]) :is(#search-wrap, #count, #zoom, #none) { opacity: 0 !important; visibility: hidden !important;
+    pointer-events: none !important; transition: opacity .4s ease, visibility 0s linear .4s; }
+
+  /* Search bar: center of the page, top while searching, magnifier icon when zoomed in */
+  #search-wrap { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, 88vw); height: 56px;
     z-index: 60; display: flex; align-items: center; border-radius: 999px; overflow: hidden;
-    transition: top .7s ease, width .45s cubic-bezier(.2,.7,.2,1); }
+    transition: top .7s ease, width .45s cubic-bezier(.2,.7,.2,1), opacity .4s ease; }
+  #search-wrap:focus-within { background: linear-gradient(135deg, rgba(255,255,255,.78), rgba(255,255,255,.42)); }
   body.searching #search-wrap { top: 48px; }
   #search-wrap.collapsed { width: 56px; }
-  #search-icon { flex: none; width: 56px; height: 56px; border: 0; background: none; cursor: pointer; color: #1c1c1c;
+  #search-icon, #cam-btn { flex: none; width: 52px; height: 56px; border: 0; background: none; cursor: pointer; color: #1c1c1c;
     display: flex; align-items: center; justify-content: center; }
-  #search { flex: 1; min-width: 0; height: 100%; padding-right: 1.4rem; border: 0; background: transparent; outline: none;
-    font: inherit; font-size: 1.1rem; color: #1c1c1c; transition: opacity .25s; }
+  #search-icon { width: 56px; }
+  #cam-btn:hover { background: rgba(255,255,255,.55); }
+  #search { flex: 1; min-width: 0; height: 100%; padding-right: .6rem; border: 0; background: transparent; outline: none;
+    font: inherit; font-size: .95rem; color: #1c1c1c; transition: opacity .25s; }
   #search::placeholder { color: rgba(0,0,0,.45); }
   #search-wrap.collapsed #search { opacity: 0; pointer-events: none; }
-  #count { position: fixed; left: 0; right: 0; top: 82px; text-align: center; font-size: .8rem; color: #666;
-    z-index: 60; display: none; pointer-events: none; }
-  body.searching:not(.bar-collapsed) #count { display: block; }
-
-  #about-btn { position: fixed; top: 20px; right: 24px; z-index: 70; padding: .6rem 1.2rem; font: inherit; font-size: .9rem;
-    color: #1c1c1c; border-radius: 999px; cursor: pointer; }
+  #count { position: fixed; left: 0; right: 0; top: 82px; text-align: center; font-size: .75rem; color: #666; z-index: 60; opacity: 0; pointer-events: none; }
+  body.searching:not(.bar-collapsed) #count { opacity: 1; }
   #zoom { position: fixed; right: 24px; bottom: 24px; z-index: 70; display: flex; align-items: center; border-radius: 999px; overflow: hidden; }
-  #zoom button { border: 0; background: none; font: inherit; font-size: .9rem; color: #1c1c1c; cursor: pointer; padding: .55rem .9rem; }
+  #zoom button { border: 0; background: none; font: inherit; font-size: .85rem; color: #1c1c1c; cursor: pointer; padding: .55rem .9rem; }
   #zoom button:hover { background: rgba(255,255,255,.5); }
 
-  /* Media grid inside a zoomable world */
-  #stage { position: fixed; inset: 0; overflow: hidden; touch-action: none; cursor: grab; }
+  /* Pages cross-fade (archive and all sections) */
+  #stage, .page { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .5s ease, transform .5s ease, visibility 0s linear .5s; }
+  #stage.active, .page.active { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity .5s ease, transform .5s ease, visibility 0s; }
+  .page { transform: translateY(14px); }
+  .page.active { transform: none; }
+
+  /* Archive: gapless grid inside a zoomable world */
+  #stage { position: fixed; inset: 0; overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
   #stage.dragging { cursor: grabbing; }
   #world { position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform-origin: 0 0; --z: 1; }
   #world.anim { transition: transform .5s cubic-bezier(.2,.7,.2,1); }
   .item { position: absolute; overflow: hidden; background: #eee; cursor: pointer; outline: none;
     transition: left .9s cubic-bezier(.2,.7,.2,1), top .9s cubic-bezier(.2,.7,.2,1), width .9s cubic-bezier(.2,.7,.2,1),
       height .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1), opacity .35s ease; }
-  .item:focus-visible { box-shadow: inset 0 0 0 3px #1c1c1c; }
   .item.hidden { opacity: 0; pointer-events: none; }
-  #world:hover .item:not(:hover):not(.hidden) { opacity: .72; }
-  .vis { position: absolute; inset: 0; }
-  .vis img, .vis video, .dprev img, .dprev video, .rv img, .rv video { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .v { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: #555; background: #e9e9e9; }
+  .vis { position: absolute; inset: 0; pointer-events: none; }
+  .vis img, .vis video, .dprev img, .dprev video, .rv img, .rv video { width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; }
+  .v { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #555; background: #e9e9e9; }
   .v.dark { background: #2b2b2b; color: #fff; }
-  .txt { width: 100%; height: 100%; padding: .7rem; font-size: .78rem; line-height: 1.45; color: #555; background: #f3f3f3; overflow: hidden; }
-  .t { position: absolute; left: 0; right: 0; bottom: 0; padding: calc(.5rem / var(--z)) calc(.6rem / var(--z));
-    font-size: calc(.8rem / var(--z)); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    background: linear-gradient(transparent, rgba(0,0,0,.6)); opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .txt { width: 100%; height: 100%; padding: .7rem; font-size: .72rem; line-height: 1.45; color: #555; background: #f3f3f3; overflow: hidden; }
+  .item::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity .25s;
+    background: rgba(255,255,255,var(--veil-opacity)); -webkit-backdrop-filter: blur(var(--veil-blur)); backdrop-filter: blur(var(--veil-blur)); }
+  .item:hover::after, .item:focus-visible::after { opacity: 1; }
+  #stage.dragging .item::after, #stage.dragging .item .t { opacity: 0 !important; }
+  .t { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: calc(.55rem / var(--z)) calc(.65rem / var(--z));
+    color: #111; opacity: 0; transition: opacity .25s; pointer-events: none; }
+  .t b, .t span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t b { font-size: calc(.8rem / var(--z)); font-weight: 700; }
+  .t span { font-size: calc(.68rem / var(--z)); color: #444; }
   .item:hover .t, .item:focus-visible .t { opacity: 1; }
-  #none { position: fixed; left: 0; right: 0; top: 45%; text-align: center; color: #777; display: none; }
-  body.searching.empty #none { display: block; }
+  #none { position: fixed; left: 0; right: 0; top: 45%; text-align: center; color: #777; opacity: 0; pointer-events: none; }
+  body.searching.empty #none { opacity: 1; }
 
-  /* Overlays */
-  #detail, #about { position: fixed; inset: 0; z-index: 80; background: rgba(255,255,255,.88); display: none;
-    align-items: center; justify-content: center; padding: 1.2rem; }
-  #about { background: rgba(255,255,255,.3); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
-  #detail.open, #about.open { display: flex; }
-  .dbox { position: relative; width: min(840px, 94vw); max-height: 94vh; overflow: auto; background: #fff; border: 1px solid #1c1c1c; padding: 1.4rem; }
-  #d-close { position: absolute; top: .6rem; right: .8rem; border: 0; background: none; font-size: 1.6rem; cursor: pointer; }
-  .dmain { display: flex; gap: 1.4rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
-  .dprev { flex: 1 1 340px; height: min(42vh, 300px); border: 1px solid #e3e3e3; }
-  .dprev .txt { font-size: 1rem; padding: 1rem; overflow: auto; }
+  /* Pages */
+  .page { position: fixed; inset: 0; z-index: 50; overflow: auto; background: #fff; padding: 96px 24px 72px; font-size: .92rem; }
+  .col { max-width: 720px; margin: 0 auto; }
+  .col.wide { max-width: 860px; }
+  .col.about { max-width: 980px; }
+  .back { display: inline-block; margin-bottom: 1.4rem; color: #555; text-decoration: none; font-size: .85rem; }
+  .back:hover { color: #000; }
+  .col h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: .4rem; }
+  .lead { color: #777; font-size: .85rem; line-height: 1.6; margin-bottom: 1.6rem; }
+
+  /* About us */
+  .ab-sec { display: grid; grid-template-columns: 210px 1fr; gap: 2rem; padding: 2rem 0 2.6rem; border-top: 1px solid #1c1c1c; }
+  .ab-head { display: flex; gap: .9rem; align-items: baseline; align-self: start; position: sticky; top: 96px; }
+  .ab-head .num { font-size: .8rem; color: #888; }
+  .ab-head h2 { font-size: 1.05rem; font-weight: 700; }
+  .ab-body p { line-height: 1.75; margin-bottom: 1rem; }
+  .ab-body .lede { font-size: 1.05rem; margin-bottom: 1.2rem; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+  .card { border: 1px solid #d5d5d5; border-radius: 14px; padding: 1.1rem 1.2rem; }
+  .card .tag2 { display: inline-block; margin-bottom: .7rem; padding: .15rem .65rem; border-radius: 999px; background: #1c1c1c; color: #fff; font-size: .7rem; }
+  .card p { margin: 0 0 .8rem; font-size: .85rem; line-height: 1.65; }
+  .card .types { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .card .types span { padding: .15rem .6rem; border: 1px solid #cfcfcf; border-radius: 999px; font-size: .7rem; color: #555; }
+  .how > div { display: grid; grid-template-columns: 110px 1fr; gap: 1rem; padding: .95rem 0; border-top: 1px solid #e5e5e5; }
+  .how dt { font-size: .75rem; color: #888; padding-top: .15rem; }
+  .how dd { line-height: 1.7; }
+  .statement { margin-top: 1.8rem !important; padding-top: 1.4rem; border-top: 1px solid #1c1c1c; font-size: 1.5rem; line-height: 1.3; font-weight: 700; }
+  .big { font-size: 1.3rem !important; line-height: 1.55 !important; }
+  .big mark { background: none; color: inherit; border-bottom: 2px solid #1c1c1c; }
+  .names { list-style: none; counter-reset: n; columns: 2; column-gap: 2rem; }
+  .names li { counter-increment: n; padding: .6rem 0; border-top: 1px solid #e5e5e5; break-inside: avoid; }
+  .names li::before { content: counter(n, decimal-leading-zero); display: inline-block; width: 2.6rem; font-size: .75rem; color: #999; }
+  @media (max-width: 700px) { .ab-sec { grid-template-columns: 1fr; gap: 1rem; } .ab-head { position: static; } .pair { grid-template-columns: 1fr; } .names { columns: 1; } }
+
+  /* Item page */
+  .imain { display: flex; gap: 1.6rem; flex-wrap: wrap; margin-bottom: 2rem; }
+  .dprev { flex: 1 1 380px; height: min(48vh, 400px); background: #f3f3f3; }
+  .dprev .txt { font-size: .9rem; padding: 1.2rem; overflow: auto; }
   .dinfo { flex: 1 1 240px; }
-  .dinfo h2 { font-size: 1.4rem; font-weight: 600; margin-bottom: .3rem; padding-right: 1.5rem; }
-  .dinfo p { color: #777; font-size: .85rem; margin-bottom: .9rem; }
-  .dinfo h3, .dbox > h3 { font-size: .85rem; font-weight: 600; margin: 0 0 .5rem; }
-  .chip { border: 1px solid #cfcfcf; border-radius: 999px; background: #fff; padding: .25rem .75rem; font: inherit; font-size: .82rem; cursor: pointer; margin: 0 .35rem .4rem 0; }
-  .chip:hover, .chip:focus-visible { background: #1c1c1c; color: #fff; outline: none; }
-  .rels { display: flex; gap: .6rem; flex-wrap: wrap; }
-  .rel { width: 118px; text-align: left; border: 1px solid #e0e0e0; background: #fff; overflow: hidden; cursor: pointer; font: inherit; }
-  .rel:hover, .rel:focus-visible { border-color: #1c1c1c; outline: none; }
-  .rv { height: 64px; }
-  .rv .txt { font-size: .6rem; padding: .35rem; }
-  .rt { display: block; padding: .35rem .45rem 0; font-size: .72rem; line-height: 1.25; }
-  .rs { display: block; padding: 0 .45rem .4rem; font-size: .66rem; color: #888; }
-  #about .box { max-width: 520px; line-height: 1.6; padding: 2rem 2.2rem; border-radius: 28px; }
-  #about h2 { font-size: 1.6rem; margin-bottom: .8rem; font-weight: 600; }
-  #about p { margin-bottom: 1.2rem; color: #222; }
-  #about-close { padding: .5rem 1.1rem; font: inherit; font-size: .9rem; color: #1c1c1c; border-radius: 999px; cursor: pointer; }
-  @media (prefers-reduced-motion: reduce) { .item, #search-wrap, #world.anim { transition: none; } }
+  .dinfo p { color: #777; font-size: .8rem; margin-bottom: 1rem; }
+  h3 { font-size: .8rem; font-weight: 700; margin: 0 0 .55rem; }
+  .chip { border: 1px solid #cfcfcf; border-radius: 999px; background: #fff; padding: .25rem .75rem; font: inherit; font-size: .78rem; cursor: pointer; margin: 0 .35rem .4rem 0; }
+  .chip:hover, .chip:focus-visible, .chip.on { background: #1c1c1c; color: #fff; outline: none; border-color: #1c1c1c; }
+  .rels { display: flex; gap: .7rem; flex-wrap: wrap; }
+  .rel { display: block; width: 130px; color: inherit; text-decoration: none; overflow: hidden; }
+  .rel:hover .rt { text-decoration: underline; }
+  .rv { height: 80px; overflow: hidden; }
+  .rv .txt { font-size: .55rem; padding: .35rem; }
+  .rt { display: block; padding: .4rem 0 0; font-size: .72rem; line-height: 1.25; }
+  .rs { display: block; font-size: .65rem; color: #888; }
+
+  /* Upload form and photo search */
+  .drop { display: block; border: 1.5px dashed #bbb; border-radius: 16px; padding: 2rem 1rem; text-align: center; cursor: pointer; color: #555; }
+  .drop:hover, .drop.over { border-color: #1c1c1c; background: #f7f7f7; }
+  .drop input { display: none; }
+  .drop small { display: block; margin-top: .3rem; color: #999; }
+  .flist { list-style: none; margin: .8rem 0 1.4rem; }
+  .flist li { display: flex; align-items: center; gap: .8rem; padding: .4rem 0; border-bottom: 1px solid #eee; font-size: .8rem; }
+  .th { flex: none; width: 44px; height: 44px; background: #eee; display: flex; align-items: center; justify-content: center; font-size: .6rem; color: #666; overflow: hidden; }
+  .th img { width: 100%; height: 100%; object-fit: cover; }
+  .fn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fs { color: #888; }
+  .flist button, .tag button { border: 0; background: none; cursor: pointer; font-size: 1.1rem; color: inherit; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; margin-top: 1.2rem; }
+  .full { grid-column: 1 / -1; }
+  .fld > span, fieldset > legend { display: block; font-size: .75rem; font-weight: 700; margin-bottom: .35rem; padding: 0; }
+  fieldset { border: 0; }
+  .fld input, .fld select, .fld textarea { width: 100%; padding: .65rem .8rem; border: 1px solid #d5d5d5; border-radius: 10px; font: inherit; font-size: .88rem; background: #fff; }
+  .fld input:focus, .fld select:focus, .fld textarea:focus, .tags:focus-within { outline: none; border-color: #1c1c1c; }
+  .radio { display: inline-flex; align-items: center; gap: .4rem; margin: .3rem 1.2rem 0 0; font-size: .85rem; }
+  .tags { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; padding: .4rem; border: 1px solid #d5d5d5; border-radius: 10px; }
+  #tag-list { display: contents; }
+  .tags input { flex: 1; min-width: 140px; border: 0 !important; padding: .3rem !important; }
+  .tag { display: inline-flex; align-items: center; gap: .3rem; padding: .2rem .3rem .2rem .7rem; border-radius: 999px; background: #1c1c1c; color: #fff; font-size: .78rem; }
+  .tag button { color: #fff; padding: 0 .3rem; }
+  .hint { font-size: .72rem; color: #888; margin: .6rem 0 .3rem; }
+  .pwbox { padding-top: 1.2rem; border-top: 1px solid #1c1c1c; }
+  .actions { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 1.4rem; }
+  .btn { display: inline-block; padding: .7rem 1.5rem; border-radius: 999px; border: 1px solid #1c1c1c; background: #1c1c1c; color: #fff; font: inherit; font-size: .85rem; cursor: pointer; }
+  .btn.ghost { background: #fff; color: #1c1c1c; }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  #upload-status, #cam-status, #cam-msg { margin-top: 1rem; font-size: .82rem; line-height: 1.6; }
+  #upload-status.err { color: #b00020; }
+  #cam-video { width: 100%; max-height: 60vh; background: #111; object-fit: cover; display: block; }
+  #cam-shot { max-width: 100%; max-height: 48vh; display: block; }
+  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) { .item, #search-wrap, #world.anim, .page, #stage, #nav .pill { transition: none !important; } }
 </style>
 </head>
-<body>
+<body data-view="archive">
 
-<button id="about-btn" class="glass" type="button">About us</button>
+<nav id="nav" class="glass">
+  <span class="pill"></span>
+  <a href="#/" data-v="archive">Archive</a>
+  <a href="#/about" data-v="about">About us</a>
+  <a href="#/upload" data-v="upload">&uarr; Upload</a>
+</nav>
 
 <div id="stage"><div id="world"></div></div>
 <p id="none">No media found for this keyword.</p>
@@ -103,48 +210,158 @@
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
   </button>
   <input id="search" type="search" placeholder="Search by keyword, e.g. train" autocomplete="off" aria-label="Search media">
+  <button id="cam-btn" type="button" aria-label="Search by photo" title="Search by photo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+  </button>
 </div>
 <div id="count"></div>
-
 <div id="zoom" class="glass">
   <button id="z-out" type="button" aria-label="Zoom out">&minus;</button>
   <button id="z-level" type="button" title="Reset zoom">100%</button>
   <button id="z-in" type="button" aria-label="Zoom in">+</button>
 </div>
 
-<div id="detail" role="dialog" aria-label="Media details">
-  <div class="dbox">
-    <button id="d-close" type="button" aria-label="Close">&times;</button>
-    <div class="dmain">
-      <div class="dprev" id="d-prev"></div>
+<!-- Item page -->
+<section id="view-item" class="page">
+  <div class="col wide">
+    <a class="back" href="#/">&larr; Back to archive</a>
+    <div class="imain">
+      <div class="dprev" id="i-prev"></div>
       <div class="dinfo">
-        <h2 id="d-title"></h2>
-        <p id="d-type"></p>
+        <h1 id="i-title"></h1>
+        <p id="i-type"></p>
         <h3>Keywords</h3>
-        <div id="d-kw"></div>
+        <div id="i-kw"></div>
       </div>
     </div>
     <h3>Related media</h3>
-    <div class="rels" id="d-rel"></div>
+    <div class="rels" id="i-rel"></div>
   </div>
-</div>
+</section>
 
-<div id="about" role="dialog" aria-label="About us">
-  <div class="box glass">
-    <h2>About us</h2>
-    <h3>Repository</h3>
-    <p>This research brings together two types of material. Collected data comes from direct observation and engagement: photographs, audio recordings, interviews, videos, field notes, and news. Scraped data is extracted from digital sources and existing information systems. The material is presented without a predetermined hierarchy or narrative. It remains fragmentary and heterogeneous.</p>
-    <p>A search reorganizes these fragments into a temporary composition. Images, voices, documents, and observations appear together according to the entered terms. Each query produces a different configuration and, through it, a speculative understanding of the site. The interface does not provide a complete or definitive reading. It creates the conditions for examining connections between fragments.</p>
-    <h3>Scope</h3>
-    <p>Developed within the Studio Caruso at ETH Zürich, this research focuses on the Schlachthof Zürich as the subject of the semester.</p>
-    <button id="about-close" class="glass" type="button">Close</button>
+<!-- About us -->
+<section id="view-about" class="page">
+  <div class="col about">
+    <article class="ab-sec">
+      <div class="ab-head"><span class="num">1</span><h2>Repository</h2></div>
+      <div class="ab-body">
+        <p class="lede">This research brings together two types of material.</p>
+        <div class="pair">
+          <div class="card"><span class="tag2">Collected</span>
+            <p>Collected data comes from direct observation and engagement: photographs, audio recordings, interviews, videos, field notes, and news.</p>
+            <div class="types"><span>Photographs</span><span>Audio recordings</span><span>Interviews</span><span>Videos</span><span>Field notes</span><span>News</span></div></div>
+          <div class="card"><span class="tag2">Scraped</span>
+            <p>Scraped data is extracted from digital sources and existing information systems.</p>
+            <div class="types"><span>Digital sources</span><span>Information systems</span></div></div>
+        </div>
+        <dl class="how">
+          <div><dt>Material</dt><dd>The material is presented without a predetermined hierarchy or narrative. It remains fragmentary and heterogeneous.</dd></div>
+          <div><dt>Search</dt><dd>A search reorganizes these fragments into a temporary composition. Images, voices, documents, and observations appear together according to the entered terms. Each query produces a different configuration and, through it, a speculative understanding of the site.</dd></div>
+          <div><dt>Interface</dt><dd>The interface does not provide a complete or definitive reading. It creates the conditions for examining connections between fragments.</dd></div>
+        </dl>
+        <p class="statement">Understanding is produced through their relations.</p>
+      </div>
+    </article>
+    <article class="ab-sec">
+      <div class="ab-head"><span class="num">2</span><h2>Scope</h2></div>
+      <div class="ab-body"><p class="big">Developed within the <mark>Studio Caruso at ETH Zürich</mark>, this research focuses on the <mark>Schlachthof Zürich</mark> as the subject of the semester.</p></div>
+    </article>
+    <article class="ab-sec">
+      <div class="ab-head"><span class="num">3</span><h2>Contributors</h2></div>
+      <div class="ab-body"><ol class="names" id="names"></ol></div>
+    </article>
   </div>
-</div>
+</section>
+
+<!-- Upload (front end only, nothing is saved yet) -->
+<section id="view-upload" class="page">
+  <form class="col" id="upload-form" novalidate>
+    <h1>Upload</h1>
+    <p class="lead">Add new material to the repository. This form is a front-end preview: nothing is saved yet.</p>
+
+    <label class="drop" id="drop">
+      <input type="file" id="files" multiple accept="image/*,video/*,audio/*,.pdf,.txt,.md,.doc,.docx">
+      <strong>Drop files here</strong> or click to browse
+      <small>Photos, videos, audio, PDFs, text documents. You can add several at once.</small>
+    </label>
+    <ul class="flist" id="file-list"></ul>
+
+    <div class="grid2">
+      <label class="fld full"><span>Title *</span><input id="f-title" type="text" placeholder="e.g. Loading dock at night"></label>
+      <label class="fld"><span>Type</span>
+        <select id="f-type"><option>Photo</option><option>Video</option><option>Audio</option><option>PDF / document</option><option>Text / note</option></select></label>
+      <label class="fld"><span>Category</span>
+        <select id="f-cat"><option>Observation</option><option>Interview</option><option>Field notes</option><option>News</option><option>Archive document</option><option>Web content</option><option>Map or plan</option><option>Other</option></select></label>
+      <fieldset class="full"><legend>Data origin</legend>
+        <label class="radio"><input type="radio" name="origin" value="collected" checked> Collected (direct observation)</label>
+        <label class="radio"><input type="radio" name="origin" value="scraped"> Scraped (digital source)</label></fieldset>
+      <label class="fld full" id="source-row" hidden><span>Source URL</span><input type="url" placeholder="https://"></label>
+      <div class="fld full"><span>Keywords</span>
+        <div class="tags"><span id="tag-list"></span><input id="tag-input" type="text" placeholder="Type a keyword, press Enter" aria-label="Add keyword"></div>
+        <p class="hint">Existing keywords, click to add:</p><div id="suggest"></div></div>
+      <label class="fld full"><span>Description or text</span><textarea id="f-desc" rows="5" placeholder="What is this? For text notes, paste the text here. It also becomes searchable."></textarea></label>
+      <label class="fld"><span>Date captured</span><input type="date"></label>
+      <label class="fld"><span>Location</span><input type="text" placeholder="e.g. Schlachthof Zürich, hall 2"></label>
+      <label class="fld"><span>Contributor</span><select id="f-who"><option value="">Select a person</option></select></label>
+      <label class="fld"><span>Rights</span>
+        <select><option>Own work</option><option>Permission granted</option><option>Public source</option><option>Unknown</option></select></label>
+      <label class="fld full pwbox"><span>Upload password *</span><input id="f-pass" type="password" autocomplete="off" placeholder="Only people who know the password can confirm the upload"></label>
+    </div>
+    <div class="actions">
+      <button class="btn" type="submit">Confirm upload</button>
+      <button class="btn ghost" type="reset">Clear</button>
+    </div>
+    <p id="upload-status" role="status"></p>
+  </form>
+</section>
+
+<!-- Photo search -->
+<section id="view-camera" class="page">
+  <div class="col wide">
+    <a class="back" href="#/">&larr; Back to archive</a>
+    <h1>Photo search</h1>
+    <p class="lead">Take a photo. The page recognizes what is in it, matches it to keywords from the archive and shows related media as a collage.</p>
+    <div id="cam-live">
+      <video id="cam-video" autoplay playsinline muted></video>
+      <div class="actions">
+        <button class="btn" id="cam-take" type="button" disabled>Take photo</button>
+        <label class="btn ghost" for="cam-file">Choose image instead</label>
+        <input id="cam-file" type="file" accept="image/*" capture="environment" hidden>
+      </div>
+    </div>
+    <div id="cam-result" hidden>
+      <img id="cam-shot" alt="Your photo">
+      <p id="cam-status" role="status"></p>
+      <h3 style="margin-top:1.2rem">Keywords for the search (click to switch on or off)</h3>
+      <div id="cam-chips"></div>
+      <div class="actions">
+        <button class="btn" id="cam-go" type="button" disabled>Show matching media</button>
+        <button class="btn ghost" id="cam-retake" type="button">Retake</button>
+      </div>
+    </div>
+    <p id="cam-msg" role="status"></p>
+  </div>
+</section>
 
 <script>
-  // ---- Test data, generated automatically. Change COUNT to try other amounts (e.g. 20, 100, 300). ----
-  // Later this list comes from the database. A real file: add  src: 'uploads/yourfile.jpg'  to an entry.
-  const COUNT = 100;
+  // ============ SETTINGS ============
+  const UPLOAD_PASSWORD = 'change-me';   // Password needed to confirm an upload. Change it here.
+  const ANALYZER = 'browser';            // Photo analysis: 'browser' = in the browser (needs internet), 'server' = api/analyze.php (next step), 'off' = pick keywords by hand
+  const COUNT = 100;                     // Number of generated test items (try 20, 100, 300)
+  const CONTRIBUTORS = ['Ava Quiblier', 'Basil Menzi', 'David Biedermann', 'Kishon Umamageswaran', 'Livia Walther', 'Matvej Golovatyuk', 'Lucia Rebolino'];
+  // Recognized words that should become archive keywords (add your own: 'recognized word': 'archive keyword' or ['kw1','kw2'])
+  const SYNONYMS = {
+    'locomotive': 'train', 'steam locomotive': 'train', 'electric locomotive': 'train', 'bullet train': 'train', 'passenger car': 'train', 'freight car': 'train', 'railcar': 'train',
+    'streetcar': 'tram', 'trolleybus': 'tram', 'tandem': 'bicycle', 'mountain bike': 'bicycle', 'bicycle-built-for-two': 'bicycle', 'alp': 'mountain', 'volcano': 'mountain', 'cliff': 'mountain',
+    'valley': 'nature', 'lakeside': 'water', 'seashore': 'coast', 'sandbar': 'coast', 'promontory': 'coast', 'espresso': 'coffee', 'coffee mug': 'coffee', 'cup': 'coffee', 'coffeepot': 'coffee',
+    'container ship': ['harbor', 'boat'], 'liner': ['harbor', 'boat'], 'speedboat': 'boat', 'pier': 'harbor', 'dock': 'harbor', 'suspension bridge': 'bridge', 'steel arch bridge': 'bridge', 'viaduct': 'bridge',
+    'airliner': ['plane', 'airport'], 'warplane': 'plane', 'church': 'architecture', 'castle': 'architecture', 'palace': 'architecture', 'skyscraper': 'architecture', 'street sign': 'street',
+    'traffic light': 'street', 'sunflower': 'flowers', 'daisy': 'flowers', 'greenhouse': 'garden', 'tractor': 'farm', 'barn': 'farm', 'ski': 'snow', 'snowplow': 'snow', 'stage': 'concert',
+    'microphone': 'music', 'electric guitar': 'music', 'acoustic guitar': 'music', 'drum': 'music', 'pasture': 'field', 'hay': 'field', 'cityscape': 'city'
+  };
+  // ==================================
+
+  // ---- Test data, generated automatically. Later this list comes from the database. A real file: add  src: 'uploads/yourfile.jpg'  ----
   function seeded(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   const rand = seeded(7);
@@ -172,25 +389,29 @@
     if (type === 'text') m.text = a + ' ' + t[0] + '. ' + pick(snippets);
     return m;
   });
+  const allKw = new Set(media.flatMap(m => m.keywords.split(' ')));
+  const kwCounts = {};
+  media.forEach(m => m.keywords.split(' ').forEach(k => { kwCounts[k] = (kwCounts[k] || 0) + 1; }));
+  const topKw = () => Object.keys(kwCounts).sort((a, b) => kwCounts[b] - kwCounts[a]);
 
   const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const stage = $('stage'), world = $('world'), search = $('search'), wrap = $('search-wrap'), countEl = $('count');
-  const detail = $('detail'), about = $('about');
+  const gap = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap')) || 0;
+  const DEFAULT_PLACEHOLDER = search.placeholder;
 
   // ---- Media visuals and tiles ----
   function visual(m, big) {
-    if (m.type === 'photo') return m.src ? `<img src="${m.src}" alt="">` : `<div class="v" style="background:${m.color}"></div>`;
+    if (m.type === 'photo') return m.src ? `<img src="${m.src}" alt="" draggable="false">` : `<div class="v" style="background:${m.color}"></div>`;
     if (m.type === 'video') return m.src ? `<video src="${m.src}" ${big ? 'controls' : 'muted preload="metadata"'}></video>` : `<div class="v dark">&#9654;</div>`;
     if (m.type === 'pdf') return `<div class="v">PDF</div>`;
     return `<div class="txt">${m.text || ''}</div>`;
   }
-  let moved = false;                                   // true right after a drag, so it is not treated as a click
   const els = media.map((m, i) => {
     const d = document.createElement('div');
-    d.className = 'item'; d.tabIndex = 0; d.setAttribute('role', 'button');
-    d.innerHTML = `<div class="vis">${visual(m, false)}</div><div class="t">${m.title}</div>`;
-    d.addEventListener('click', () => { if (!moved) openDetail(i); });
-    d.addEventListener('keydown', e => { if (e.key === 'Enter') openDetail(i); });
+    d.className = 'item'; d.tabIndex = 0; d.dataset.i = i; d.setAttribute('role', 'button');
+    d.innerHTML = `<div class="vis">${visual(m, false)}</div><div class="t"><b>${m.title}</b><span>${m.keywords.split(' ').join(', ')}</span></div>`;
+    d.addEventListener('keydown', e => { if (e.key === 'Enter') location.hash = '#/item/' + i; });
     world.appendChild(d);
     return d;
   });
@@ -200,18 +421,18 @@
     Object.assign(e, { _x: x, _y: y, _w: w, _h: h });
   }
 
-  // ---- Grid: finds columns/rows so tiles are close to 4:3 and the whole page is filled ----
+  // ---- Grid: picks columns/rows so tiles are close to 4:3 and the whole page is filled ----
   function bestGrid(W, H, n) {
     let best = null;
     for (let c = 1; c <= n; c++) {
       const rows = Math.ceil(n / c), last = n - (rows - 1) * c;
-      const s = Math.abs(Math.log((W / c) / (H / rows) / 1.3)) + .6 * Math.log(c / last);   // shape + how much the last row must stretch
+      const s = Math.abs(Math.log((W / c) / (H / rows) / 1.3)) + .6 * Math.log(c / last);
       if (!best || s < best.s) best = { c, rows, last, s };
     }
     return best;
   }
 
-  // ---- Collage for search results: treemap packs rectangles of different sizes with no gaps ----
+  // ---- Collage for search results: treemap packs rectangles of different sizes ----
   function treemap(list, x, y, w, h) {
     const k = w * h / list.reduce((s, d) => s + d.v, 0), out = [];
     const nodes = list.map(d => ({ i: d.i, a: d.v * k })).sort((a, b) => b.a - a.a);
@@ -237,43 +458,46 @@
     return terms.reduce((s, x) => s + (t.includes(x) ? 1.5 : 0) + (k.includes(' ' + x + ' ') ? 1 : 0), 0);
   }
 
+  let photoTerms = [];                                  // keywords from a photo search (matches ANY of them)
   function layout() {
-    const W = window.innerWidth, H = window.innerHeight, n = media.length;
-    const terms = search.value.trim().toLowerCase().split(/\s+/).filter(Boolean), hits = [];
+    const W = window.innerWidth, H = window.innerHeight, n = media.length, G = gap();
+    const photo = photoTerms.length > 0;
+    const terms = photo ? photoTerms : search.value.trim().toLowerCase().split(/\s+/).filter(Boolean), hits = [];
     els.forEach((e, i) => {
       const m = media[i], hay = (m.title + ' ' + m.keywords + ' ' + (m.text || '')).toLowerCase();
-      const ok = terms.every(t => hay.includes(t));
+      const ok = photo ? terms.some(t => hay.includes(t)) : terms.every(t => hay.includes(t));
       e.classList.toggle('hidden', !ok);
       if (ok) hits.push(i);
     });
     document.body.classList.toggle('searching', terms.length > 0);
     document.body.classList.toggle('empty', terms.length > 0 && hits.length === 0);
+    search.placeholder = photo ? 'Photo search: ' + photoTerms.join(', ') : DEFAULT_PLACEHOLDER;
 
-    if (!terms.length) {                                // landing: gapless grid over the whole page
+    if (!terms.length) {                                // landing: grid over the whole page
       const g = bestGrid(W, H, n);
       els.forEach((e, i) => {
         const row = Math.floor(i / g.c), col = i - row * g.c, cnt = row < g.rows - 1 ? g.c : g.last;   // last row stretches to fill
         const x0 = Math.round(col * W / cnt), x1 = Math.round((col + 1) * W / cnt);
         const y0 = Math.round(row * H / g.rows), y1 = Math.round((row + 1) * H / g.rows);
-        put(e, x0, y0, x1 - x0 + 1, y1 - y0 + 1, 1);    // +1px overlap hides hairline seams
+        put(e, x0 + G / 2, y0 + G / 2, x1 - x0 - G, y1 - y0 - G, 1);
         e.style.zIndex = 1;
       });
       countEl.textContent = '';
       return;
     }
 
-    countEl.textContent = hits.length + (hits.length === 1 ? ' result' : ' results');
+    countEl.textContent = hits.length + (hits.length === 1 ? ' result' : ' results') + (photo ? ' for your photo' : '');
     const aX = 24, aY = 110, aW = W - 48, aH = H - aY - 24;
     const f = Math.min(1, Math.sqrt(hits.length * 42000 / (aW * aH)));
     const rw = aW * f, rh = aH * f, rx = aX + (aW - rw) / 2, ry = aY + (aH - rh) / 2;
     treemap(hits.map(i => ({ i, v: (1 + .8 * score(media[i], terms)) * TYPE_WEIGHT[media[i].type] })), rx, ry, rw, rh).forEach(t => {
-      put(els[t.i], t.x + 3, t.y + 3, Math.max(t.w - 6, 10), Math.max(t.h - 6, 10), 1);
+      put(els[t.i], t.x + G / 2, t.y + G / 2, Math.max(t.w - G, 10), Math.max(t.h - G, 10), 1);
       els[t.i].style.zIndex = 2;
     });
     els.forEach((e, i) => { if (!hits.includes(i)) { put(e, e._x, e._y, e._w, e._h, .6); e.style.zIndex = 1; } });
   }
 
-  // ---- Zoom (up to 500%) and pan ----
+  // ---- Zoom (up to 500%) ----
   let z = 1, tx = 0, ty = 0, expanded = false;
   function updateBar() {
     const collapsed = z > 1.05 && !expanded;
@@ -296,7 +520,7 @@
   }
   const resetView = () => { z = 1; tx = 0; ty = 0; expanded = false; applyView(true); };
   window.addEventListener('wheel', e => {
-    if (detail.classList.contains('open') || about.classList.contains('open')) return;
+    if (document.body.dataset.view !== 'archive') return;        // other pages scroll normally
     e.preventDefault();
     zoomAt(e.clientX, e.clientY, z * Math.exp(-e.deltaY * (e.ctrlKey ? .01 : .0015)));
   }, { passive: false });
@@ -304,56 +528,228 @@
   $('z-out').addEventListener('click', () => zoomAt(innerWidth / 2, innerHeight / 2, z / 1.5));
   $('z-level').addEventListener('click', resetView);
 
-  let drag = null;                                     // drag to move around while zoomed in
-  stage.addEventListener('pointerdown', e => { if (e.button === 0) { drag = { x: e.clientX, y: e.clientY, tx, ty, id: e.pointerId }; moved = false; } });
+  // ---- Pan by dragging. A tile only opens on a real click (little movement), never after a drag. ----
+  let drag = null, dragging = false;
+  stage.addEventListener('pointerdown', e => {
+    if (e.button === 0) { drag = { x: e.clientX, y: e.clientY, tx, ty, id: e.pointerId, item: e.target.closest('.item') }; dragging = false; }
+  });
   stage.addEventListener('pointermove', e => {
     if (!drag) return;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-    if (!moved && Math.hypot(dx, dy) > 5) { moved = true; stage.setPointerCapture(drag.id); stage.classList.add('dragging'); }
-    if (moved) { tx = drag.tx + dx; ty = drag.ty + dy; applyView(false); }
+    if (!dragging && Math.hypot(dx, dy) > 6) { dragging = true; stage.setPointerCapture(drag.id); stage.classList.add('dragging'); }
+    if (dragging) { tx = drag.tx + dx; ty = drag.ty + dy; applyView(false); }
   });
-  const endDrag = () => { drag = null; stage.classList.remove('dragging'); setTimeout(() => { moved = false; }, 0); };
+  const endDrag = e => {
+    if (drag && !dragging && e.type === 'pointerup' && drag.item) location.hash = '#/item/' + drag.item.dataset.i;
+    drag = null; dragging = false; stage.classList.remove('dragging');
+  };
   stage.addEventListener('pointerup', endDrag); stage.addEventListener('pointercancel', endDrag);
 
   // ---- Search bar ----
   $('search-icon').addEventListener('click', () => {
     if (wrap.classList.contains('collapsed')) { expanded = true; updateBar(); setTimeout(() => search.focus(), 300); } else search.focus();
   });
+  $('cam-btn').addEventListener('click', () => { location.hash = '#/camera'; });
   search.addEventListener('blur', () => { if (z > 1.05 && !search.value.trim()) { expanded = false; updateBar(); } });
-  search.addEventListener('input', () => { if (z !== 1) resetView(); layout(); });
-  window.addEventListener('resize', () => { layout(); applyView(false); });
+  search.addEventListener('input', () => { photoTerms = []; if (z !== 1) resetView(); layout(); });
+  window.addEventListener('resize', () => { layout(); applyView(false); movePill(); });
 
-  // ---- Detail view: keywords and related media ----
+  // ---- Item page: keywords and related media ----
   const words = media.map(m => new Set(m.keywords.split(' ')));
   const TYPE_NAME = { photo: 'Photo', video: 'Video', pdf: 'PDF', text: 'Text' };
-  function openDetail(i) {
+  function renderItem(i) {
     const m = media[i];
-    $('d-prev').innerHTML = visual(m, true);
-    $('d-title').textContent = m.title;
-    $('d-type').innerHTML = TYPE_NAME[m.type] + (m.src ? ` &middot; <a href="${m.src}" target="_blank">open file</a>` : ' (sample, no file yet)');
-    $('d-kw').innerHTML = m.keywords.split(' ').map(k => `<button class="chip" type="button" data-k="${k}">${k}</button>`).join('');
+    $('i-prev').innerHTML = visual(m, true);
+    $('i-title').textContent = m.title;
+    $('i-type').innerHTML = TYPE_NAME[m.type] + (m.src ? ` &middot; <a href="${m.src}" target="_blank">open file</a>` : ' (sample, no file yet)');
+    $('i-kw').innerHTML = m.keywords.split(' ').map(k => `<button class="chip" type="button" data-k="${k}">${k}</button>`).join('');
     const rel = media.map((_, j) => ({ j, shared: [...words[j]].filter(w => words[i].has(w)) }))
-      .filter(o => o.j !== i && o.shared.length).sort((a, b) => b.shared.length - a.shared.length || a.j - b.j).slice(0, 6);
-    $('d-rel').innerHTML = rel.length ? rel.map(o =>
-      `<button class="rel" type="button" data-i="${o.j}"><div class="rv">${visual(media[o.j], false)}</div><span class="rt">${media[o.j].title}</span><span class="rs">${o.shared.slice(0, 3).join(', ')}</span></button>`).join('')
-      : '<p style="color:#888;font-size:.85rem">No related media yet.</p>';
-    detail.classList.add('open');
+      .filter(o => o.j !== i && o.shared.length).sort((a, b) => b.shared.length - a.shared.length || a.j - b.j).slice(0, 8);
+    $('i-rel').innerHTML = rel.length ? rel.map(o =>
+      `<a class="rel" href="#/item/${o.j}"><div class="rv">${visual(media[o.j], false)}</div><span class="rt">${media[o.j].title}</span><span class="rs">${o.shared.slice(0, 3).join(', ')}</span></a>`).join('')
+      : '<p style="color:#888;font-size:.8rem">No related media yet.</p>';
   }
-  const closeDetail = () => { detail.classList.remove('open'); $('d-prev').innerHTML = ''; };
-  detail.addEventListener('click', e => {
-    const chip = e.target.closest('.chip'), rel = e.target.closest('.rel');
-    if (chip) { search.value = chip.dataset.k; closeDetail(); if (z !== 1) resetView(); layout(); }
-    else if (rel) openDetail(+rel.dataset.i);
-    else if (e.target === detail || e.target.closest('#d-close')) closeDetail();
+  $('view-item').addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (chip) { photoTerms = []; search.value = chip.dataset.k; if (z !== 1) resetView(); layout(); location.hash = '#/'; }   // keyword = new search
   });
 
-  // ---- About panel ----
-  $('about-btn').addEventListener('click', () => about.classList.add('open'));
-  $('about-close').addEventListener('click', () => about.classList.remove('open'));
-  about.addEventListener('click', e => { if (e.target === about) about.classList.remove('open'); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDetail(); about.classList.remove('open'); } });
+  // ---- About: contributors ----
+  $('names').innerHTML = CONTRIBUTORS.map(n => `<li>${n}</li>`).join('');
 
-  layout(); applyView(false);
+  // ---- Upload form (front end only) ----
+  const form = $('upload-form');
+  let files = [], tags = [], typeTouched = false;
+  $('f-who').innerHTML += CONTRIBUTORS.map(n => `<option>${n}</option>`).join('') + '<option>Other</option>';
+  const fmt = b => b < 1048576 ? Math.max(1, Math.round(b / 1024)) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+  const kindOf = f => f.type.startsWith('image') ? 'Photo' : f.type.startsWith('video') ? 'Video' : f.type.startsWith('audio') ? 'Audio' : f.type === 'application/pdf' ? 'PDF / document' : 'Text / note';
+  function renderFiles() {
+    $('file-list').innerHTML = files.map((f, i) => `<li><span class="th">${f.type.startsWith('image') ? `<img src="${URL.createObjectURL(f)}" alt="">` : esc(kindOf(f).slice(0, 3).toUpperCase())}</span>` +
+      `<span class="fn">${esc(f.name)}</span><span class="fs">${fmt(f.size)}</span><button type="button" data-rm="${i}" aria-label="Remove file">&times;</button></li>`).join('');
+  }
+  function addFiles(list) {
+    files.push(...list);
+    if (files.length && !typeTouched) $('f-type').value = kindOf(files[0]);
+    if (files.length && !$('f-title').value) $('f-title').value = files[0].name.replace(/\.[^.]+$/, '');
+    renderFiles();
+  }
+  const drop = $('drop');
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); });
+  $('files').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
+  window.addEventListener('dragover', e => e.preventDefault());   // a missed drop must not open the file in the browser
+  window.addEventListener('drop', e => e.preventDefault());
+  $('f-type').addEventListener('change', () => { typeTouched = true; });
+
+  function renderTags() {
+    $('tag-list').innerHTML = tags.map((t, i) => `<span class="tag">${esc(t)}<button type="button" data-rt="${i}" aria-label="Remove keyword">&times;</button></span>`).join('');
+    $('suggest').innerHTML = topKw().filter(k => !tags.includes(k)).slice(0, 14).map(k => `<button class="chip" type="button" data-add="${k}">${k}</button>`).join('');
+  }
+  function addTag(t) { t = t.trim().toLowerCase().replace(/,/g, ''); if (t && !tags.includes(t)) { tags.push(t); renderTags(); } }
+  $('tag-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(e.target.value); e.target.value = ''; }
+    else if (e.key === 'Backspace' && !e.target.value && tags.length) { tags.pop(); renderTags(); }
+  });
+  $('tag-input').addEventListener('blur', e => { addTag(e.target.value); e.target.value = ''; });
+  form.addEventListener('click', e => {
+    const rm = e.target.closest('[data-rm]'), rt = e.target.closest('[data-rt]'), ad = e.target.closest('[data-add]');
+    if (rm) { files.splice(+rm.dataset.rm, 1); renderFiles(); }
+    if (rt) { tags.splice(+rt.dataset.rt, 1); renderTags(); }
+    if (ad) addTag(ad.dataset.add);
+  });
+  form.addEventListener('change', e => { if (e.target.name === 'origin') $('source-row').hidden = e.target.value !== 'scraped'; });
+  form.addEventListener('reset', () => { files = []; tags = []; typeTouched = false; $('source-row').hidden = true; $('upload-status').textContent = ''; renderFiles(); renderTags(); });
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const st = $('upload-status'), title = $('f-title').value.trim();
+    const fail = msg => { st.className = 'err'; st.textContent = msg; };
+    if (!title) return fail('Please add a title.');
+    if (!files.length && !$('f-desc').value.trim()) return fail('Please add at least one file or some text.');
+    if ($('f-pass').value !== UPLOAD_PASSWORD) { $('f-pass').value = ''; return fail('Wrong password. The upload was not confirmed.'); }
+    st.className = '';
+    st.textContent = `Preview only: "${title}" (${files.length} file${files.length === 1 ? '' : 's'}, ${tags.length} keyword${tags.length === 1 ? '' : 's'}) would be added to the archive. Saving to the database is the next step.`;
+    $('f-pass').value = '';
+  });
+  renderTags();
+
+  // ---- Photo search: camera, analysis, keyword matching ----
+  let stream = null, modelPromise = null, chips = [];
+  const loadScript = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('could not load ' + src.split('/')[4])); document.head.appendChild(s); });
+  function getModel() {                                  // loads the recognition model once, only when first needed
+    if (!modelPromise) modelPromise = (async () => {
+      await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js');
+      await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js');
+      return mobilenet.load({ version: 2, alpha: 1.0 });
+    })();
+    modelPromise.catch(() => { modelPromise = null; });
+    return modelPromise;
+  }
+  async function startCamera() {
+    stopCamera(); $('cam-msg').textContent = ''; $('cam-take').disabled = true;
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no camera API');
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      $('cam-video').srcObject = stream; $('cam-take').disabled = false;
+    } catch (err) {
+      $('cam-msg').textContent = 'The camera is not available (' + err.message + '). It needs your permission and works on localhost or https. You can choose an image instead.';
+    }
+  }
+  function stopCamera() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } $('cam-video').srcObject = null; }
+  function camReset() { $('cam-live').hidden = false; $('cam-result').hidden = true; $('cam-msg').textContent = ''; startCamera(); }
+
+  function matchKeywords(labels) {                      // recognized words -> keywords that exist in the archive
+    const sc = {};
+    labels.forEach(l => String(l.text).toLowerCase().split(',').forEach(phrase => {
+      phrase = phrase.trim();
+      [phrase, ...phrase.split(/[\s-]+/)].forEach(t => [t, t.replace(/s$/, '')].forEach(x => {
+        [].concat(SYNONYMS[x] || x).forEach(k => { if (allKw.has(k)) sc[k] = (sc[k] || 0) + l.score; });
+      }));
+    }));
+    return Object.keys(sc).sort((a, b) => sc[b] - sc[a]).slice(0, 6);
+  }
+  async function analyze(img, blob) {
+    const st = $('cam-status');
+    try {
+      if (ANALYZER === 'browser') {
+        st.textContent = 'Loading image recognition (first time only, needs internet)...';
+        const model = await getModel();
+        st.textContent = 'Analyzing image...';
+        return (await model.classify(img, 5)).map(p => ({ text: p.className, score: p.probability }));
+      }
+      if (ANALYZER === 'server') {                      // next step: api/analyze.php answers {"labels":[{"text":"train","score":0.9}]}
+        const fd = new FormData(); fd.append('image', blob, 'photo.jpg');
+        const r = await fetch('api/analyze.php', { method: 'POST', body: fd });
+        if (!r.ok) throw new Error('server answered ' + r.status);
+        return ((await r.json()).labels || []).map(l => typeof l === 'string' ? { text: l, score: .5 } : l);
+      }
+      throw new Error('analysis is switched off');
+    } catch (err) {
+      st.textContent = 'Automatic recognition is not available (' + err.message + '). Choose keywords below instead.';
+      return null;
+    }
+  }
+  function renderChips() {
+    $('cam-chips').innerHTML = chips.map((c, i) => `<button class="chip${c.on ? ' on' : ''}" type="button" data-ck="${i}">${c.k}</button>`).join('');
+    $('cam-go').disabled = !chips.some(c => c.on);
+  }
+  async function handleShot(blob) {
+    stopCamera();
+    const img = $('cam-shot');
+    img.src = URL.createObjectURL(blob);
+    $('cam-live').hidden = true; $('cam-result').hidden = false; $('cam-chips').innerHTML = ''; $('cam-go').disabled = true;
+    try { await img.decode(); } catch (e) { /* shown anyway */ }
+    const labels = await analyze(img, blob);
+    const found = labels ? matchKeywords(labels) : [];
+    if (labels) {
+      const said = labels.map(l => l.text.split(',')[0]).join(' / ');
+      $('cam-status').textContent = found.length ? 'Recognized: ' + said + '. Matching keywords are switched on.' : 'Recognized: ' + said + '. None of it matches keywords in the archive, choose some below.';
+    }
+    chips = found.map(k => ({ k, on: true })).concat(topKw().filter(k => !found.includes(k)).slice(0, 14).map(k => ({ k, on: false })));
+    renderChips();
+  }
+  $('cam-take').addEventListener('click', () => {
+    const v = $('cam-video'), s = Math.min(1, 800 / Math.max(v.videoWidth, v.videoHeight)), c = document.createElement('canvas');
+    c.width = Math.round(v.videoWidth * s); c.height = Math.round(v.videoHeight * s);
+    c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+    c.toBlob(b => handleShot(b), 'image/jpeg', .85);
+  });
+  $('cam-file').addEventListener('change', e => { if (e.target.files[0]) handleShot(e.target.files[0]); e.target.value = ''; });
+  $('cam-retake').addEventListener('click', camReset);
+  $('cam-chips').addEventListener('click', e => { const b = e.target.closest('[data-ck]'); if (b) { chips[+b.dataset.ck].on = !chips[+b.dataset.ck].on; renderChips(); } });
+  $('cam-go').addEventListener('click', () => {         // photo keywords -> collage in the archive
+    photoTerms = chips.filter(c => c.on).map(c => c.k); search.value = '';
+    if (z !== 1) resetView();
+    location.hash = '#/';
+  });
+
+  // ---- One page: sections switch by address (#/, #/item/3, #/about, #/upload, #/camera), no pop-ups ----
+  function movePill() {
+    const a = document.querySelector('#nav a.on'), pill = document.querySelector('#nav .pill');
+    if (!a) return;
+    pill.style.left = a.offsetLeft + 'px'; pill.style.width = a.offsetWidth + 'px';
+    requestAnimationFrame(() => pill.classList.add('ready'));
+  }
+  function route() {
+    const [name, arg] = location.hash.replace(/^#\/?/, '').split('/');
+    let view = 'archive';
+    if (name === 'about' || name === 'upload' || name === 'camera') view = name;
+    else if (name === 'item' && media[+arg]) view = 'item';
+    if (view === 'item') renderItem(+arg);
+    if (view === 'camera') camReset(); else stopCamera();
+    document.body.dataset.view = view;
+    stage.classList.toggle('active', view === 'archive');
+    ['item', 'about', 'upload', 'camera'].forEach(v => { const p = $('view-' + v); p.classList.toggle('active', view === v); if (view === v) p.scrollTop = 0; });
+    const navView = (view === 'item' || view === 'camera') ? 'archive' : view;
+    document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.dataset.v === navView));
+    movePill();
+    if (view === 'archive') { layout(); applyView(false); }
+  }
+  window.addEventListener('hashchange', route);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.dataset.view !== 'archive') location.hash = '#/'; });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(movePill);
+
+  layout(); applyView(false); route();
 </script>
 </body>
 </html>
